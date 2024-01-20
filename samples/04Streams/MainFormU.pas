@@ -21,6 +21,12 @@ type
     btnAnotherMe: TButton;
     btnXREAD: TButton;
     btnBulkXADD: TButton;
+    Panel2: TPanel;
+    Button1: TButton;
+    Button2: TButton;
+    Button3: TButton;
+    Button4: TButton;
+    Button5: TButton;
     procedure btnConnClick(Sender: TObject);
     procedure ApplicationEvents1Idle(Sender: TObject; var Done: Boolean);
     procedure btnXADDClick(Sender: TObject);
@@ -30,22 +36,29 @@ type
     procedure btnXREADClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure btnBulkXADDClick(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
+    procedure Button3Click(Sender: TObject);
+    procedure Button4Click(Sender: TObject);
+    procedure Button5Click(Sender: TObject);
   private
     fRedis: IRedisClient;
-    fTask: ITask;
+    fTaskSubs, fTaskStreamRead, fTaskStreamReadConsumer1,fTaskCheckMatches: ITask;
     fLastXRANGEID, fLastXREADID: String;
     procedure Log(const MSG: String);
+    procedure CheckMatches;
   public
     { Public declarations }
   end;
 
+      procedure NewOrderConsumer1(const lorder,ltype,lqty,lprice:string);
 var
   MainForm: TMainForm;
 
 implementation
 
 uses
-  Winapi.ShellAPI;
+  Winapi.ShellAPI, UnitMarket, dateutils;
 
 {$R *.dfm}
 
@@ -94,7 +107,7 @@ var
   I: Integer;
 begin
   // XADD mystream MAXLEN ~ 1000 * ... entry fields here ...
-  for I := 1 to 50000 do
+  for I := 1 to 10000 do
   begin
     lCmd := NewRedisCommand('XADD');
     lCmd
@@ -112,6 +125,8 @@ end;
 
 procedure TMainForm.btnConnClick(Sender: TObject);
 begin
+FormatSettings.DecimalSeparator := '.';
+
   if Assigned(fRedis) then
   begin
     fRedis.Disconnect;
@@ -126,7 +141,7 @@ end;
 
 procedure TMainForm.btnSubscriptionClick(Sender: TObject);
 begin
-  fTask := TTask.Run(
+  fTaskSubs := TTask.Run(
     procedure
     begin
       var lRedis := NewRedisClient();
@@ -135,7 +150,7 @@ begin
       begin
         var lCmd := NewRedisCommand('XREAD');
         lCmd.Add('BLOCK');
-        lCmd.Add('5000');
+        lCmd.Add('1000');
         lCmd.Add('STREAMS');
         lCmd.Add('mystream');
 
@@ -270,12 +285,233 @@ begin
   end;
 end;
 
+procedure TMainForm.Button1Click(Sender: TObject);
+var
+  lCmd: IRedisCommand;
+  lRes: TRedisNullable<string>;
+begin
+  // XADD mystream MAXLEN ~ 1000 * ... entry fields here ...
+  // XADD order_history:XH2USD * user_id 456 order_type buy quantity 5 price 40000
+  lCmd := NewRedisCommand('XADD');
+  lCmd
+    .Add('order_history:XH2USD')
+//    .Add('MAXLEN')
+//    .Add('~')
+//    .Add(10)
+    .Add('*')
+    .Add('user_id')
+    .Add('456')
+    .Add('type')
+    .Add('buy')
+    .Add('qty')
+    .Add(Random(100))
+    .Add('price')
+    .Add(92+Random(100)/10);
+  lRes := fRedis.ExecuteWithStringResult(lCmd);
+  Log(lRes.Value);
+end;
+
+procedure TMainForm.Button2Click(Sender: TObject);
+var
+  lCmd: IRedisCommand;
+  lRes: TRedisNullable<string>;
+begin
+  // XADD mystream MAXLEN ~ 1000 * ... entry fields here ...
+  // XADD order_history:XH2USD * user_id 456 order_type buy quantity 5 price 40000
+  lCmd := NewRedisCommand('XADD');
+  lCmd
+    .Add('order_history:XH2USD')
+//    .Add('MAXLEN')
+//    .Add('~')
+//    .Add(10)
+    .Add('*')
+    .Add('user_id')
+    .Add('456')
+    .Add('type')
+    .Add('sell')
+    .Add('qty')
+    .Add(Random(100))
+    .Add('price')
+    .Add(100+Random(100)/10);
+  lRes := fRedis.ExecuteWithStringResult(lCmd);
+  Log(lRes.Value);
+end;
+
+procedure TMainForm.Button3Click(Sender: TObject);
+begin
+  fTaskStreamRead := TTask.Run(
+    procedure
+    begin
+      var lRedis := NewRedisClient();
+      var lLastID := '';
+      while TTask.CurrentTask.Status <> TTaskStatus.Canceled do
+      begin
+        var lCmd := NewRedisCommand('XREAD');
+        lCmd.Add('BLOCK');
+        lCmd.Add('10000');
+        lCmd.Add('STREAMS');
+        lCmd.Add('order_history:XH2USD');
+
+        // XRANGE key start end [COUNT count]
+        if lLastID.IsEmpty then
+        begin
+          lCmd.Add('$');
+        end
+        else
+        begin
+          lCmd.Add(lLastID);
+        end;
+        var lRes: TRedisRESPArray := lRedis.ExecuteAndGetRESPArray(lCmd);
+        if not Assigned(lRes) then
+        begin
+          Log('Timeout');
+          Continue;
+        end;
+        try
+          Log(lRes.ToJSON());
+          if lRes.Count > 0 then
+          begin
+            var
+            lSizeOfMyStreamArray := lRes
+              .Items[0].ArrayValue
+              .Items[1].ArrayValue
+              .Count;
+
+            lLastID := lRes
+              .Items[0].ArrayValue
+              .Items[1].ArrayValue
+              .Items[lSizeOfMyStreamArray - 1].ArrayValue
+              .Items[0].Value;
+          end;
+        finally
+          lRes.Free;
+        end;
+      end;
+      lRedis.Disconnect();
+    end);
+end;
+
+procedure NewOrderConsumer1(const lorder,ltype,lqty,lprice:string);
+ function OrderType:string;
+ begin
+   if uppercase(ltype) = 'BUY' then
+   result := 'BIDS'
+    else
+   result := 'OFFERS';
+ end;
+var
+  lCmd: IRedisCommand;
+  lRes: TRedisNullable<string>;
+begin
+  // ZADD BIDS:XH2USD 40000 1705351179675-0
+  lCmd := NewRedisCommand('ZADD');
+  lCmd
+    .Add(Format('%s:XH2USD',[OrderType]))
+    .Add(lprice)
+    .Add(LOrder);
+
+  lRes := mainform.fRedis.ExecuteWithStringResult(lCmd);
+  mainform.Log(lRes.Value);
+end;
+
+procedure TMainForm.Button4Click(Sender: TObject);
+begin
+  fTaskStreamReadConsumer1 := TTask.Run(
+    procedure
+    begin
+      var lRedis := NewRedisClient();
+      var lLastID := '';
+      while TTask.CurrentTask.Status <> TTaskStatus.Canceled do
+      begin
+//        CheckMatches;
+        var lCmd := NewRedisCommand('XREAD');
+        lCmd.Add('BLOCK');
+        lCmd.Add('1000');
+        lCmd.Add('STREAMS');
+        lCmd.Add('order_history:XH2USD');
+
+        // XRANGE key start end [COUNT count]
+        if lLastID.IsEmpty then
+        begin
+          lCmd.Add('$');
+        end
+        else
+        begin
+          lCmd.Add(lLastID);
+        end;
+        var lRes: TRedisRESPArray := lRedis.ExecuteAndGetRESPArray(lCmd);
+        if not Assigned(lRes) then
+        begin
+          Log('Timeout '+DateTimeToUnix(Now()).ToString);
+          Continue;
+        end;
+        try
+          Log(lRes.ToJSON());
+          if lRes.Count > 0 then
+          begin
+            var
+            lSizeOfMyStreamArray := lRes
+              .Items[0].ArrayValue
+              .Items[1].ArrayValue
+              .Count;
+
+            lLastID := lRes
+              .Items[0].ArrayValue
+              .Items[1].ArrayValue
+              .Items[lSizeOfMyStreamArray - 1].ArrayValue
+              .Items[0].Value;
+
+//            lRes.ToJSON()
+            var lorder := lRes.Items[0].ArrayValue.Items[1].ArrayValue.Items[lSizeOfMyStreamArray - 1].ArrayValue.Items[0].Value;
+            var ltype := lRes.Items[0].ArrayValue.Items[1].ArrayValue.Items[lSizeOfMyStreamArray - 1].ArrayValue.Items[1].ArrayValue[3].Value;
+            var lqty := lRes.Items[0].ArrayValue.Items[1].ArrayValue.Items[lSizeOfMyStreamArray - 1].ArrayValue.Items[1].ArrayValue[5].Value;
+            var lprice := lRes.Items[0].ArrayValue.Items[1].ArrayValue.Items[lSizeOfMyStreamArray - 1].ArrayValue.Items[1].ArrayValue[7].Value;
+//            log(ltype); log(lqty); log(lprice);
+            NewOrderConsumer1(lorder,ltype,lqty,lprice);
+            CheckMatches;
+          end;
+        finally
+          lRes.Free;
+        end;
+      end;
+      lRedis.Disconnect();
+    end
+);
+end;
+
+procedure TMainForm.Button5Click(Sender: TObject);
+begin
+CheckMatches;
+end;
+
+procedure TMainForm.CheckMatches;
+begin
+  var Market := TMarket.Create;
+ Market.MatchOrders;
+ market.Free;
+end;
+
 procedure TMainForm.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
-  if Assigned(fTask) then
+  if Assigned(fTaskSubs) then
   begin
-    fTask.Cancel;
-    fTask := nil;
+    fTaskSubs.Cancel;
+    fTaskSubs := nil;
+  end;
+  if Assigned(fTaskStreamRead) then
+  begin
+    fTaskStreamRead.Cancel;
+    fTaskStreamRead := nil;
+  end;
+  if Assigned(fTaskStreamReadConsumer1) then
+  begin
+    fTaskStreamReadConsumer1.Cancel;
+    fTaskStreamReadConsumer1 := nil;
+  end;
+  if Assigned(fTaskCheckMatches) then
+  begin
+    fTaskCheckMatches.Cancel;
+    fTaskCheckMatches := nil;
   end;
 end;
 

@@ -163,12 +163,13 @@ type
     function SUNIONSTORE(const aDestination: String; const aKeys: array of string): Integer;
 
     // ordered sets
-    function ZADD(const aKey: string; const AScore: Int64; const AMember: string): Integer;
+//    function ZADD(const aKey: string; const AScore: Int64; const AMember: string): Integer;   //zmieniam na double
+    function ZADD(const aKey: string; const AScore: double; const AMember: string): Integer;   //zmieniam na double
     function ZREM(const aKey: string; const AMember: string): Integer;
     function ZCARD(const aKey: string): Integer;
     function ZCOUNT(const aKey: string; const AMin, AMax: Int64): Integer;
     function ZRANK(const aKey: string; const AMember: string; out ARank: Int64): boolean;
-    function ZRANGE(const aKey: string; const aStart, AStop: Int64; const aScores: TRedisScoreMode = TRedisScoreMode.WithoutScores): TRedisArray;
+    function ZRANGE(const aKey: string; const aStart, AStop: Int64; Rev:boolean=false; Limit:integer=0; const aScores: TRedisScoreMode = TRedisScoreMode.WithoutScores): TRedisArray;
     function ZREVRANGE(const aKey: string; const aStart, AStop: Int64; const aScoreMode: TRedisScoreMode = TRedisScoreMode.WithoutScores): TRedisArray;
 //    function ZRANGEWithScore(const aKey: string; const aStart, AStop: Int64)
 //      : TRedisArray;

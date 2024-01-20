@@ -2,7 +2,7 @@ object MainForm: TMainForm
   Left = 0
   Top = 0
   Caption = 'REDIS Streams Sample'
-  ClientHeight = 367
+  ClientHeight = 455
   ClientWidth = 724
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -10,9 +10,7 @@ object MainForm: TMainForm
   Font.Height = -11
   Font.Name = 'Tahoma'
   Font.Style = []
-  OldCreateOrder = False
   OnClose = FormClose
-  PixelsPerInch = 96
   TextHeight = 13
   object Splitter1: TSplitter
     Left = 0
@@ -27,7 +25,7 @@ object MainForm: TMainForm
     Left = 0
     Top = 70
     Width = 724
-    Height = 297
+    Height = 346
     Align = alClient
     Font.Charset = ANSI_CHARSET
     Font.Color = clWindowText
@@ -134,6 +132,71 @@ object MainForm: TMainForm
         TabOrder = 5
         OnClick = btnBulkXADDClick
       end
+    end
+  end
+  object Panel2: TPanel
+    Left = 0
+    Top = 416
+    Width = 724
+    Height = 39
+    Align = alBottom
+    TabOrder = 2
+    object Button1: TButton
+      AlignWithMargins = True
+      Left = 397
+      Top = 4
+      Width = 177
+      Height = 31
+      Align = alLeft
+      Caption = 'New 10x Order BUY to stream'
+      TabOrder = 0
+      OnClick = Button1Click
+    end
+    object Button2: TButton
+      AlignWithMargins = True
+      Left = 214
+      Top = 4
+      Width = 177
+      Height = 31
+      Align = alLeft
+      Caption = 'New 10x Order SELL to stream'
+      TabOrder = 1
+      OnClick = Button2Click
+    end
+    object Button3: TButton
+      AlignWithMargins = True
+      Left = 115
+      Top = 4
+      Width = 93
+      Height = 31
+      Align = alLeft
+      Caption = 'Subscribe'
+      TabOrder = 2
+      WordWrap = True
+      OnClick = Button3Click
+    end
+    object Button4: TButton
+      AlignWithMargins = True
+      Left = 4
+      Top = 4
+      Width = 105
+      Height = 31
+      Align = alLeft
+      Caption = 'Sub + Consumer1'
+      TabOrder = 3
+      WordWrap = True
+      OnClick = Button4Click
+    end
+    object Button5: TButton
+      AlignWithMargins = True
+      Left = 580
+      Top = 4
+      Width = 53
+      Height = 31
+      Align = alLeft
+      Caption = 'test'
+      TabOrder = 4
+      OnClick = Button5Click
     end
   end
   object ApplicationEvents1: TApplicationEvents

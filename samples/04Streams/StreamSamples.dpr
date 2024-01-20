@@ -2,7 +2,8 @@ program StreamSamples;
 
 uses
   Vcl.Forms,
-  MainFormU in 'MainFormU.pas' {MainForm};
+  MainFormU in 'MainFormU.pas' {MainForm},
+  UnitMarket in 'UnitMarket.pas';
 
 {$R *.res}
 

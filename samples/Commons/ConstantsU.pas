@@ -27,7 +27,7 @@ unit ConstantsU;
 interface
 
 const
-  REDIS_HOSTNAME = '192.168.1.6';
+  REDIS_HOSTNAME = '127.0.0.1';
 
 implementation
 

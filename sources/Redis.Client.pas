@@ -172,13 +172,13 @@ type
 {$ENDREGION}
     // ordered sets
 {$REGION ORDEREDSETS}
-    function ZADD(const aKey: string; const AScore: Int64; const AMember: string): Integer;
+    function ZADD(const aKey: string; const AScore: double; const AMember: string): Integer;
     function ZREM(const aKey: string; const AMember: string): Integer;
     function ZCARD(const aKey: string): Integer;
     function ZCOUNT(const aKey: string; const AMin, AMax: Int64): Integer;
     function ZRANK(const aKey: string; const AMember: string; out ARank: Int64): boolean;
-    function ZRANGE(const aKey: string; const AStart, AStop: Int64; const aScoreMode: TRedisScoreMode = TRedisScoreMode.WithoutScores): TRedisArray;
-    function ZREVRANGE(const aKey: string; const AStart, AStop: Int64; const aScoreMode: TRedisScoreMode = TRedisScoreMode.WithoutScores): TRedisArray;
+    function ZRANGE(const aKey: string; const aStart, AStop: Int64; Rev:boolean=false; Limit:integer=0; const aScores: TRedisScoreMode = TRedisScoreMode.WithoutScores): TRedisArray;
+    function ZREVRANGE(const aKey: string; const aStart, AStop: Int64; const aScoreMode: TRedisScoreMode = TRedisScoreMode.WithoutScores): TRedisArray;
     // function ZRANGEWithScore(const aKey: string; const AStart, AStop: Int64)
     // : TRedisArray;
     function ZINCRBY(const aKey: string; const AIncrement: Int64; const AMember: string): string;
@@ -1822,7 +1822,7 @@ begin
   Result := ExecuteWithStringResult(lCmd);
 end;
 
-function TRedisClient.ZADD(const aKey: string; const AScore: Int64; const AMember: string): Integer;
+function TRedisClient.ZADD(const aKey: string; const AScore: double; const AMember: string): Integer;
 begin
   FNextCMD := GetCmdList('ZADD');
   FNextCMD.Add(aKey).Add(AScore.ToString).Add(AMember);
@@ -1849,14 +1849,23 @@ begin
   Result := ExecuteWithStringResult(FNextCMD);
 end;
 
-function TRedisClient.ZRANGE(const aKey: string; const AStart, AStop: Int64; const aScoreMode: TRedisScoreMode): TRedisArray;
+function TRedisClient.ZRANGE(const aKey: string; const aStart, AStop: Int64; Rev:boolean; Limit:integer; const aScores: TRedisScoreMode): TRedisArray;
 begin
   FNextCMD := GetCmdList('ZRANGE');
   FNextCMD.Add(aKey).Add(AStart.ToString).Add(AStop.ToString);
-  if aScoreMode = TRedisScoreMode.WithScores then
+    if Limit > 0 then
+  begin
+    FNextCMD.Add('BYSCORE').Add('LIMIT').Add('0').Add(limit.ToString);
+  end;
+   if Rev = true then
+  begin
+    FNextCMD.Add('REV');
+  end;
+    if aScores = TRedisScoreMode.WithScores then
   begin
     FNextCMD.Add('WITHSCORES');
   end;
+
   Result := ExecuteAndGetArrayNULL(FNextCMD);
 end;
 
@@ -1883,7 +1892,7 @@ begin
   Result := ExecuteWithIntegerResult(FNextCMD);
 end;
 
-function TRedisClient.ZREVRANGE(const aKey: string; const AStart, AStop: Int64; const aScoreMode: TRedisScoreMode): TRedisArray;
+function TRedisClient.ZREVRANGE(const aKey: string; const aStart, AStop: Int64; const aScoreMode: TRedisScoreMode): TRedisArray;
 begin
   FNextCMD := GetCmdList('ZREVRANGE');
   FNextCMD.Add(aKey).Add(AStart.ToString).Add(AStop.ToString);
@@ -1891,6 +1900,7 @@ begin
   begin
     FNextCMD.Add('WITHSCORES');
   end;
+
   Result := ExecuteAndGetArrayNULL(FNextCMD);
 end;
 
