@@ -25,7 +25,7 @@ object MainForm: TMainForm
     Left = 0
     Top = 70
     Width = 724
-    Height = 346
+    Height = 282
     Align = alClient
     Font.Charset = ANSI_CHARSET
     Font.Color = clWindowText
@@ -35,6 +35,7 @@ object MainForm: TMainForm
     ParentFont = False
     TabOrder = 0
     WordWrap = False
+    ExplicitHeight = 346
   end
   object Panel1: TPanel
     Left = 0
@@ -198,6 +199,20 @@ object MainForm: TMainForm
       TabOrder = 4
       OnClick = Button5Click
     end
+  end
+  object Memo2: TMemo
+    Left = 0
+    Top = 352
+    Width = 724
+    Height = 64
+    Align = alBottom
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -8
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    ParentFont = False
+    TabOrder = 3
   end
   object ApplicationEvents1: TApplicationEvents
     OnIdle = ApplicationEvents1Idle

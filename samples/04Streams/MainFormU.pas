@@ -27,6 +27,7 @@ type
     Button3: TButton;
     Button4: TButton;
     Button5: TButton;
+    Memo2: TMemo;
     procedure btnConnClick(Sender: TObject);
     procedure ApplicationEvents1Idle(Sender: TObject; var Done: Boolean);
     procedure btnXADDClick(Sender: TObject);
@@ -46,8 +47,10 @@ type
     fTaskSubs, fTaskStreamRead, fTaskStreamReadConsumer1,fTaskCheckMatches: ITask;
     fLastXRANGEID, fLastXREADID: String;
     procedure Log(const MSG: String);
-    procedure CheckMatches;
+    procedure Log2(const MSG: String);
+
   public
+      procedure CheckMatches;
     { Public declarations }
   end;
 
@@ -394,10 +397,7 @@ end;
 procedure NewOrderConsumer1(const lorder,ltype,lqty,lprice:string);
  function OrderType:string;
  begin
-   if uppercase(ltype) = 'BUY' then
-   result := 'BIDS'
-    else
-   result := 'OFFERS';
+   if uppercase(ltype) = 'BUY' then result := 'BIDS'  else result := 'OFFERS';
  end;
 var
   lCmd: IRedisCommand;
@@ -405,13 +405,14 @@ var
 begin
   // ZADD BIDS:XH2USD 40000 1705351179675-0
   lCmd := NewRedisCommand('ZADD');
-  lCmd
-    .Add(Format('%s:XH2USD',[OrderType]))
-    .Add(lprice)
-    .Add(LOrder);
+  lCmd.Add(Format('%s:XH2USD',[OrderType])).Add(lprice).Add(LOrder);
 
   lRes := mainform.fRedis.ExecuteWithStringResult(lCmd);
-  mainform.Log(lRes.Value);
+//  mainform.Log(lRes.Value);
+
+  // HSET 1705351179675-0 BUY 40000 101.3
+  mainform.fRedis.HMSET(LOrder,['type','qty','price'],[ltype,lqty,lprice]);
+
 end;
 
 procedure TMainForm.Button4Click(Sender: TObject);
@@ -442,7 +443,7 @@ begin
         var lRes: TRedisRESPArray := lRedis.ExecuteAndGetRESPArray(lCmd);
         if not Assigned(lRes) then
         begin
-          Log('Timeout '+DateTimeToUnix(Now()).ToString);
+          Log2('Timeout '+DateTimeToUnix(Now()).ToString);
           Continue;
         end;
         try
@@ -486,9 +487,7 @@ end;
 
 procedure TMainForm.CheckMatches;
 begin
-  var Market := TMarket.Create;
- Market.MatchOrders;
- market.Free;
+ MatchOrders;
 end;
 
 procedure TMainForm.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -527,6 +526,22 @@ begin
       if Assigned(Memo1) then
       begin
         Memo1.Lines.Add(Format('[TID %d] %s', [lThreadID, lValue]));
+      end;
+    end);
+end;
+
+procedure TMainForm.Log2(const MSG: String);
+var
+  lValue: String;
+begin
+  lValue := MSG;
+  var lThreadID := TThread.CurrentThread.ThreadID;
+  TThread.Queue(nil,
+    procedure
+    begin
+      if Assigned(Memo1) then
+      begin
+        Memo2.Lines.Add(Format('[TID %d] %s', [lThreadID, lValue]));
       end;
     end);
 end;
