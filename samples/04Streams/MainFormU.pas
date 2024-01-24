@@ -464,7 +464,8 @@ begin
             lRedis.ZADD(Format('%s:XH2USD',[OrderType(ltype)]),lprice.ToDouble,LOrder);
             lRedis.HMSET(LOrder,['type','qty','price'],[ltype,lqty,lprice]);
 
-            MatchOrders(ltype);
+            while MatchOrders(ltype) do
+             MatchOrders(ltype);
             end;
           end;
         finally

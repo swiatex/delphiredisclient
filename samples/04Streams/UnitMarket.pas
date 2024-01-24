@@ -47,7 +47,7 @@ type
    XMin = 0;
    XMax = 1000000000;
 
-       procedure MatchOrders(const maker:string);
+    function MatchOrders(const maker:string):boolean;
 
 implementation
 
@@ -145,8 +145,8 @@ begin
   Result := Format('%d,%d,%d,%d', [order.CreatorID, Ord(order.Side), order.Quantity, order.Price]);
 end;
 
-procedure MatchOrders(const maker:string);
-   var RedisClient : IRedisClient;
+function MatchOrders(const maker:string):boolean;
+var RedisClient : IRedisClient;
   newBid, newOffer, LBid, LOffer: TOrder;
   bids, offers: TRedisArray;
   NoNextCheck : boolean;
@@ -156,37 +156,35 @@ procedure MatchOrders(const maker:string);
   bidsKey = 'BIDS:XH2USD';
   offersKey = 'OFFERS:XH2USD';
 
- procedure GetOrderDetailsFromHash(Order:TOrder);
-var
- lRes : TRedisArray;
- test : BOOLEAN;
-begin
- if (Order.Quantity >0) and (order.Price >0) then exit;
+    procedure GetOrderDetailsFromHash(Order:TOrder);
+   var
+    lRes : TRedisArray;
+    test : BOOLEAN;
+   begin
+    if (Order.Quantity >0) and (order.Price >0) then exit;
 
- if RedisClient.HEXISTS(Order.CreatorID,'type') then
-  lRes :=  RedisClient.HMGET(Order.CreatorID,['type','qty','price'])
- else
-  begin
-    RedisClient.DEL(Order.CreatorID);
-    if Order.Side = buy then
-    RedisClient.ZREM(bidsKey, Order.CreatorID)
+    if RedisClient.HEXISTS(Order.CreatorID,'type') then
+     lRes :=  RedisClient.HMGET(Order.CreatorID,['type','qty','price'])
     else
-    RedisClient.ZREM(offersKey, Order.CreatorID);
-    exit;
+     begin
+       RedisClient.DEL(Order.CreatorID);
+       if Order.Side = buy then
+       RedisClient.ZREM(bidsKey, Order.CreatorID)
+       else
+       RedisClient.ZREM(offersKey, Order.CreatorID);
+       exit;
+      end;
+   // if Assigned(lRes) then Log(lRes.ToJSON());
+
+   // var lSizeOfMyStreamArray := lRes.Items[0].ArrayValue.Items[1].ArrayValue.Count;
+   // Order.Side := lRes.Items[0].Value;
+    Order.Quantity := lRes.Items[1].Value.ToDouble;
+    Order.Price := lRes.Items[2].Value.ToDouble;
+   // Order.Price := lRes.Items[0].ArrayValue.Items[1].ArrayValue.Items[7].value.todouble; //ArrayValue.Items[1].ArrayValue[7].Value.ToDouble;
    end;
-// if Assigned(lRes) then Log(lRes.ToJSON());
-
-// var lSizeOfMyStreamArray := lRes.Items[0].ArrayValue.Items[1].ArrayValue.Count;
-// Order.Side := lRes.Items[0].Value;
- Order.Quantity := lRes.Items[1].Value.ToDouble;
- Order.Price := lRes.Items[2].Value.ToDouble;
-// Order.Price := lRes.Items[0].ArrayValue.Items[1].ArrayValue.Items[7].value.todouble; //ArrayValue.Items[1].ArrayValue[7].Value.ToDouble;
-end;
-
-
 
 begin
-
+  result := false;
   RedisClient := NewRedisClient();
   // Retrieve bids and offers from Redis sorted sets
 
@@ -202,7 +200,7 @@ begin
   offers := RedisClient.ZRANGE(offersKey, XMin, XMax, false, 1);
 
   // Process bids and offers
-  if (bids.HasValue) and (Offers.HasValue) then
+  if (Bids.HasValue) and (Offers.HasValue) then
   begin
    NoNextCheck := false;
     // Convert bid and offer strings to TOrder objects (you need to implement this)
@@ -225,6 +223,7 @@ begin
     begin
       if LBid.Quantity <> LOffer.Quantity then
       begin
+       result := true;
         if LBid.Quantity > LOffer.Quantity then
         begin
           newBid := TOrder.Create;

@@ -37,8 +37,6 @@ object MainForm: TMainForm
     ScrollBars = ssBoth
     TabOrder = 0
     WordWrap = False
-    ExplicitWidth = 974
-    ExplicitHeight = 282
   end
   object Panel1: TPanel
     Left = 0
@@ -47,7 +45,6 @@ object MainForm: TMainForm
     Height = 65
     Align = alTop
     TabOrder = 1
-    ExplicitWidth = 724
     object btnConn: TButton
       AlignWithMargins = True
       Left = 4
@@ -68,7 +65,6 @@ object MainForm: TMainForm
       BevelOuter = bvLowered
       Caption = 'pnlToolbar'
       TabOrder = 1
-      ExplicitWidth = 611
       object btnSubscription: TButton
         AlignWithMargins = True
         Left = 4
@@ -114,7 +110,6 @@ object MainForm: TMainForm
         TabOrder = 3
         WordWrap = True
         OnClick = btnAnotherMeClick
-        ExplicitLeft = 551
       end
       object btnXREAD: TButton
         AlignWithMargins = True
@@ -148,8 +143,6 @@ object MainForm: TMainForm
     Height = 39
     Align = alBottom
     TabOrder = 2
-    ExplicitTop = 416
-    ExplicitWidth = 724
     object Button1: TButton
       AlignWithMargins = True
       Left = 311
@@ -206,7 +199,6 @@ object MainForm: TMainForm
       Caption = 'bulk SELL'
       TabOrder = 4
       OnClick = Button5Click
-      ExplicitLeft = 580
     end
     object Button6: TButton
       AlignWithMargins = True
@@ -218,7 +210,6 @@ object MainForm: TMainForm
       Caption = 'bulk BUY'
       TabOrder = 5
       OnClick = Button6Click
-      ExplicitLeft = 647
     end
   end
   object Memo2: TMemo
@@ -234,8 +225,6 @@ object MainForm: TMainForm
     Font.Style = []
     ParentFont = False
     TabOrder = 3
-    ExplicitTop = 352
-    ExplicitWidth = 724
   end
   object Memo3: TMemo
     Left = 687
@@ -252,8 +241,6 @@ object MainForm: TMainForm
     ScrollBars = ssBoth
     TabOrder = 4
     WordWrap = False
-    ExplicitLeft = 768
-    ExplicitHeight = 282
   end
   object ApplicationEvents1: TApplicationEvents
     OnIdle = ApplicationEvents1Idle
