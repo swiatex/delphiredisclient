@@ -47,12 +47,12 @@ type
    XMin = 0;
    XMax = 1000000000;
 
-       procedure MatchOrders;
+       procedure MatchOrders(const maker:string);
 
 implementation
 
 uses
-  System.SysUtils, MainFormU, StrUtils;
+  System.SysUtils, MainFormU, StrUtils, Math;
 
 { TMarket }
 
@@ -138,22 +138,56 @@ begin
  Order.Price := lRes.Items[0].ArrayValue.Items[1].ArrayValue.Items[7].value.todouble; //ArrayValue.Items[1].ArrayValue[7].Value.ToDouble;
 end;
 
+
+
 function OrderToString(const order: TOrder): string;
 begin
   Result := Format('%d,%d,%d,%d', [order.CreatorID, Ord(order.Side), order.Quantity, order.Price]);
 end;
 
-procedure MatchOrders;
-var
+procedure MatchOrders(const maker:string);
+   var RedisClient : IRedisClient;
   newBid, newOffer, LBid, LOffer: TOrder;
   bids, offers: TRedisArray;
   NoNextCheck : boolean;
-const
+  theMaker : string;
+
+  const
   bidsKey = 'BIDS:XH2USD';
   offersKey = 'OFFERS:XH2USD';
+
+ procedure GetOrderDetailsFromHash(Order:TOrder);
+var
+ lRes : TRedisArray;
+ test : BOOLEAN;
+begin
+ if (Order.Quantity >0) and (order.Price >0) then exit;
+
+ if RedisClient.HEXISTS(Order.CreatorID,'type') then
+  lRes :=  RedisClient.HMGET(Order.CreatorID,['type','qty','price'])
+ else
+  begin
+    RedisClient.DEL(Order.CreatorID);
+    if Order.Side = buy then
+    RedisClient.ZREM(bidsKey, Order.CreatorID)
+    else
+    RedisClient.ZREM(offersKey, Order.CreatorID);
+    exit;
+   end;
+// if Assigned(lRes) then Log(lRes.ToJSON());
+
+// var lSizeOfMyStreamArray := lRes.Items[0].ArrayValue.Items[1].ArrayValue.Count;
+// Order.Side := lRes.Items[0].Value;
+ Order.Quantity := lRes.Items[1].Value.ToDouble;
+ Order.Price := lRes.Items[2].Value.ToDouble;
+// Order.Price := lRes.Items[0].ArrayValue.Items[1].ArrayValue.Items[7].value.todouble; //ArrayValue.Items[1].ArrayValue[7].Value.ToDouble;
+end;
+
+
+
 begin
 
-  var RedisClient := NewRedisClient();
+  RedisClient := NewRedisClient();
   // Retrieve bids and offers from Redis sorted sets
 
 
@@ -173,10 +207,13 @@ begin
    NoNextCheck := false;
     // Convert bid and offer strings to TOrder objects (you need to implement this)
     LBid := TOrder.Create(Bids.items[0].tostring);
-    GetOrderDetailsFromStream(LBid);
+    LBid.Side := buy;
+    GetOrderDetailsFromHash(LBid);
     LOffer := TOrder.create(Offers.items[0].tostring);
-    GetOrderDetailsFromStream(LOffer);
+    LOffer.Side := sell;
+    GetOrderDetailsFromHash(LOffer);
 
+    if UpperCase(Maker) = 'BUY' then theMaker := LBid.CreatorID else theMaker := LOffer.CreatorID;
     newBid := nil;    newOffer := nil;
 
     if LBid.Price < LOffer.Price then begin
@@ -195,6 +232,9 @@ begin
           newBid.Quantity := LBid.Quantity - LOffer.Quantity;
           newBid.Price := LBid.Price;
 
+          Log('Match! '+LBid.CreatorID+'/'+LBid.Price.ToString+':'+LBid.Quantity.ToString+'/'+'  '+ LOffer.CreatorID+'/'+LOffer.Price.ToString+':'+LOffer.Quantity.ToString+'/');
+          redisclient.XADD('Matches',['bid','offer','maker','qty','clearing_price'],[LBid.CreatorID,LOffer.CreatorID,theMaker,LOffer.Quantity.ToString,min(LBid.Price,LOffer.Price).ToString]);
+
           LBid.Quantity := LOffer.Quantity;     //Kupi³em ile bu³o do sprzedania
         end
         else
@@ -204,28 +244,25 @@ begin
           newOffer.Quantity := LOffer.Quantity - LBid.Quantity;
           newOffer.Price := LOffer.Price;
 
+          Log('Match! '+LBid.CreatorID+'/'+LBid.Price.ToString+':'+LBid.Quantity.ToString+'/'+'  '+ LOffer.CreatorID+'/'+LOffer.Price.ToString+':'+LOffer.Quantity.ToString+'/');
+          redisclient.XADD('Matches',['bid','offer','maker','qty','clearing_price'],[LBid.CreatorID,LOffer.CreatorID,theMaker,LBid.Quantity.ToString,min(LBid.Price,LOffer.Price).ToString]);
+
           LOffer.Quantity := LBid.Quantity;            // sprzeda³em ile by³o do kupienia
         end;
       end;
     end;
 
-//  FMatches.Add(TMatch.Create);
-//  FMatches.Last.Bid := LBid;
-//  FMatches.Last.Offer := LOffer;
-  redisclient.XADD('Matches',LBid.CreatorID,LOffer.CreatorID);
-  Log('Match! '+LBid.CreatorID+' '+LOffer.CreatorID);
-
   RedisClient.ZREM(bidsKey, LBid.CreatorID);
   RedisClient.ZREM(offersKey, LOffer.CreatorID);
-  RedisClient.DEL([bidsKey,offersKey]);
-//  RedisClient.HDEL(offersKey,['type','qty','price']);
+//  RedisClient.DEL([bidsKey,offersKey]);
+  RedisClient.DEL([LBid.CreatorID,LOffer.CreatorID]);
 
   bids.Empty;
   offers.Empty;
 
-  if assigned(newBid) then
+  if assigned(newBid)  then if newBid.Quantity>0 then
   NewOrderConsumer1(newBid.CreatorID,'BUY',newBid.Quantity.ToString,newBid.Price.ToString);
-  if assigned(newOffer) then
+  if assigned(newOffer) then if newOffer.Quantity>0 then
   NewOrderConsumer1(newoffer.CreatorID,'SELL',newoffer.Quantity.ToString,newoffer.Price.ToString);
 
   LBid.Free;
@@ -233,6 +270,7 @@ begin
 
 //  if not NoNextCheck then MainForm.CheckMatches;
   end;
+  RedisClient.Disconnect;
 
 end;
 

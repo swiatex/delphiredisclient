@@ -2,8 +2,8 @@ object MainForm: TMainForm
   Left = 0
   Top = 0
   Caption = 'REDIS Streams Sample'
-  ClientHeight = 455
-  ClientWidth = 724
+  ClientHeight = 445
+  ClientWidth = 885
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -15,17 +15,18 @@ object MainForm: TMainForm
   object Splitter1: TSplitter
     Left = 0
     Top = 65
-    Width = 724
+    Width = 885
     Height = 5
     Cursor = crVSplit
     Align = alTop
     ExplicitTop = 85
+    ExplicitWidth = 724
   end
   object Memo1: TMemo
     Left = 0
     Top = 70
-    Width = 724
-    Height = 282
+    Width = 687
+    Height = 272
     Align = alClient
     Font.Charset = ANSI_CHARSET
     Font.Color = clWindowText
@@ -33,17 +34,20 @@ object MainForm: TMainForm
     Font.Name = 'Courier New'
     Font.Style = []
     ParentFont = False
+    ScrollBars = ssBoth
     TabOrder = 0
     WordWrap = False
-    ExplicitHeight = 346
+    ExplicitWidth = 974
+    ExplicitHeight = 282
   end
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 724
+    Width = 885
     Height = 65
     Align = alTop
     TabOrder = 1
+    ExplicitWidth = 724
     object btnConn: TButton
       AlignWithMargins = True
       Left = 4
@@ -58,12 +62,13 @@ object MainForm: TMainForm
     object pnlToolbar: TPanel
       Left = 112
       Top = 1
-      Width = 611
+      Width = 772
       Height = 63
       Align = alClient
       BevelOuter = bvLowered
       Caption = 'pnlToolbar'
       TabOrder = 1
+      ExplicitWidth = 611
       object btnSubscription: TButton
         AlignWithMargins = True
         Left = 4
@@ -100,7 +105,7 @@ object MainForm: TMainForm
         OnClick = btnXRANGEClick
       end
       object btnAnotherMe: TButton
-        Left = 551
+        Left = 712
         Top = 1
         Width = 59
         Height = 61
@@ -109,6 +114,7 @@ object MainForm: TMainForm
         TabOrder = 3
         WordWrap = True
         OnClick = btnAnotherMeClick
+        ExplicitLeft = 551
       end
       object btnXREAD: TButton
         AlignWithMargins = True
@@ -137,19 +143,21 @@ object MainForm: TMainForm
   end
   object Panel2: TPanel
     Left = 0
-    Top = 416
-    Width = 724
+    Top = 406
+    Width = 885
     Height = 39
     Align = alBottom
     TabOrder = 2
+    ExplicitTop = 416
+    ExplicitWidth = 724
     object Button1: TButton
       AlignWithMargins = True
-      Left = 397
+      Left = 311
       Top = 4
-      Width = 177
+      Width = 82
       Height = 31
       Align = alLeft
-      Caption = 'New 10x Order BUY to stream'
+      Caption = '1x BUY'
       TabOrder = 0
       OnClick = Button1Click
     end
@@ -157,10 +165,10 @@ object MainForm: TMainForm
       AlignWithMargins = True
       Left = 214
       Top = 4
-      Width = 177
+      Width = 91
       Height = 31
       Align = alLeft
-      Caption = 'New 10x Order SELL to stream'
+      Caption = '1x SELL'
       TabOrder = 1
       OnClick = Button2Click
     end
@@ -190,20 +198,33 @@ object MainForm: TMainForm
     end
     object Button5: TButton
       AlignWithMargins = True
-      Left = 580
+      Left = 399
       Top = 4
-      Width = 53
+      Width = 61
       Height = 31
       Align = alLeft
-      Caption = 'test'
+      Caption = 'bulk SELL'
       TabOrder = 4
       OnClick = Button5Click
+      ExplicitLeft = 580
+    end
+    object Button6: TButton
+      AlignWithMargins = True
+      Left = 466
+      Top = 4
+      Width = 66
+      Height = 31
+      Align = alLeft
+      Caption = 'bulk BUY'
+      TabOrder = 5
+      OnClick = Button6Click
+      ExplicitLeft = 647
     end
   end
   object Memo2: TMemo
     Left = 0
-    Top = 352
-    Width = 724
+    Top = 342
+    Width = 885
     Height = 64
     Align = alBottom
     Font.Charset = DEFAULT_CHARSET
@@ -213,6 +234,26 @@ object MainForm: TMainForm
     Font.Style = []
     ParentFont = False
     TabOrder = 3
+    ExplicitTop = 352
+    ExplicitWidth = 724
+  end
+  object Memo3: TMemo
+    Left = 687
+    Top = 70
+    Width = 198
+    Height = 272
+    Align = alRight
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -8
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    ParentFont = False
+    ScrollBars = ssBoth
+    TabOrder = 4
+    WordWrap = False
+    ExplicitLeft = 768
+    ExplicitHeight = 282
   end
   object ApplicationEvents1: TApplicationEvents
     OnIdle = ApplicationEvents1Idle

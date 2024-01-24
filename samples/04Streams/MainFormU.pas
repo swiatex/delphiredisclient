@@ -26,8 +26,10 @@ type
     Button2: TButton;
     Button3: TButton;
     Button4: TButton;
-    Button5: TButton;
     Memo2: TMemo;
+    Button5: TButton;
+    Button6: TButton;
+    Memo3: TMemo;
     procedure btnConnClick(Sender: TObject);
     procedure ApplicationEvents1Idle(Sender: TObject; var Done: Boolean);
     procedure btnXADDClick(Sender: TObject);
@@ -42,15 +44,17 @@ type
     procedure Button3Click(Sender: TObject);
     procedure Button4Click(Sender: TObject);
     procedure Button5Click(Sender: TObject);
+    procedure Button6Click(Sender: TObject);
   private
-    fRedis: IRedisClient;
+
     fTaskSubs, fTaskStreamRead, fTaskStreamReadConsumer1,fTaskCheckMatches: ITask;
     fLastXRANGEID, fLastXREADID: String;
     procedure Log(const MSG: String);
+    procedure Log3(const MSG: String);
     procedure Log2(const MSG: String);
 
   public
-      procedure CheckMatches;
+      fRedis: IRedisClient;
     { Public declarations }
   end;
 
@@ -394,25 +398,22 @@ begin
     end);
 end;
 
-procedure NewOrderConsumer1(const lorder,ltype,lqty,lprice:string);
- function OrderType:string;
+ function OrderType(ltype:string):string;
  begin
    if uppercase(ltype) = 'BUY' then result := 'BIDS'  else result := 'OFFERS';
  end;
+
+procedure NewOrderConsumer1(const lorder,ltype,lqty,lprice:string);
 var
   lCmd: IRedisCommand;
   lRes: TRedisNullable<string>;
 begin
-  // ZADD BIDS:XH2USD 40000 1705351179675-0
-  lCmd := NewRedisCommand('ZADD');
-  lCmd.Add(Format('%s:XH2USD',[OrderType])).Add(lprice).Add(LOrder);
+ var RedisClient := NewRedisClient();
 
-  lRes := mainform.fRedis.ExecuteWithStringResult(lCmd);
-//  mainform.Log(lRes.Value);
+  RedisClient.ZADD(Format('%s:XH2USD',[OrderType(ltype)]),lprice.ToDouble,LOrder);
+  RedisClient.HMSET(LOrder,['type','qty','price'],[ltype,lqty,lprice]);
 
-  // HSET 1705351179675-0 BUY 40000 101.3
-  mainform.fRedis.HMSET(LOrder,['type','qty','price'],[ltype,lqty,lprice]);
-
+  RedisClient.Disconnect;
 end;
 
 procedure TMainForm.Button4Click(Sender: TObject);
@@ -424,14 +425,9 @@ begin
       var lLastID := '';
       while TTask.CurrentTask.Status <> TTaskStatus.Canceled do
       begin
-//        CheckMatches;
-        var lCmd := NewRedisCommand('XREAD');
-        lCmd.Add('BLOCK');
-        lCmd.Add('1000');
-        lCmd.Add('STREAMS');
-        lCmd.Add('order_history:XH2USD');
+       try
+        var lCmd := NewRedisCommand('XREAD').Add('BLOCK').Add('5000').Add('STREAMS').Add('order_history:XH2USD');
 
-        // XRANGE key start end [COUNT count]
         if lLastID.IsEmpty then
         begin
           lCmd.Add('$');
@@ -440,6 +436,8 @@ begin
         begin
           lCmd.Add(lLastID);
         end;
+
+
         var lRes: TRedisRESPArray := lRedis.ExecuteAndGetRESPArray(lCmd);
         if not Assigned(lRes) then
         begin
@@ -450,44 +448,88 @@ begin
           Log(lRes.ToJSON());
           if lRes.Count > 0 then
           begin
-            var
-            lSizeOfMyStreamArray := lRes
-              .Items[0].ArrayValue
-              .Items[1].ArrayValue
-              .Count;
+            var lSizeOfMyStreamArray := lRes.Items[0].ArrayValue.Items[1].ArrayValue.Count;
 
-            lLastID := lRes
-              .Items[0].ArrayValue
-              .Items[1].ArrayValue
-              .Items[lSizeOfMyStreamArray - 1].ArrayValue
-              .Items[0].Value;
+            var i:integer;
+            for i := 0 to lSizeOfMyStreamArray-1 do begin
+
+            lLastID := lRes.Items[0].ArrayValue.Items[1].ArrayValue.Items[i].ArrayValue.Items[0].Value;
 
 //            lRes.ToJSON()
-            var lorder := lRes.Items[0].ArrayValue.Items[1].ArrayValue.Items[lSizeOfMyStreamArray - 1].ArrayValue.Items[0].Value;
-            var ltype := lRes.Items[0].ArrayValue.Items[1].ArrayValue.Items[lSizeOfMyStreamArray - 1].ArrayValue.Items[1].ArrayValue[3].Value;
-            var lqty := lRes.Items[0].ArrayValue.Items[1].ArrayValue.Items[lSizeOfMyStreamArray - 1].ArrayValue.Items[1].ArrayValue[5].Value;
-            var lprice := lRes.Items[0].ArrayValue.Items[1].ArrayValue.Items[lSizeOfMyStreamArray - 1].ArrayValue.Items[1].ArrayValue[7].Value;
-//            log(ltype); log(lqty); log(lprice);
-            NewOrderConsumer1(lorder,ltype,lqty,lprice);
-            CheckMatches;
+            var lorder := lRes.Items[0].ArrayValue.Items[1].ArrayValue.Items[i].ArrayValue.Items[0].Value;
+            var ltype  := lRes.Items[0].ArrayValue.Items[1].ArrayValue.Items[i].ArrayValue.Items[1].ArrayValue[3].Value;
+            var lqty   := lRes.Items[0].ArrayValue.Items[1].ArrayValue.Items[i].ArrayValue.Items[1].ArrayValue[5].Value;
+            var lprice := lRes.Items[0].ArrayValue.Items[1].ArrayValue.Items[i].ArrayValue.Items[1].ArrayValue[7].Value;
+
+            lRedis.ZADD(Format('%s:XH2USD',[OrderType(ltype)]),lprice.ToDouble,LOrder);
+            lRedis.HMSET(LOrder,['type','qty','price'],[ltype,lqty,lprice]);
+
+            MatchOrders(ltype);
+            end;
           end;
         finally
           lRes.Free;
         end;
+         except
+         on E : Exception do begin {showmessage(E.ToString);}    log3(E.ToString); end;
+       end;
       end;
       lRedis.Disconnect();
     end
 );
+
 end;
+
+
 
 procedure TMainForm.Button5Click(Sender: TObject);
 begin
-CheckMatches;
+  // XADD mystream MAXLEN ~ 1000 * ... entry fields here ...
+  // XADD order_history:XH2USD * user_id 456 order_type buy quantity 5 price 40000
+
+ TTask.Run( procedure var i:integer; begin
+  for I := 1 to 10000 do begin
+   var lCmd := NewRedisCommand('XADD');
+   lCmd
+    .Add('order_history:XH2USD')
+    .Add('*')
+    .Add('user_id')
+    .Add('456')
+    .Add('type')
+    .Add('sell')
+    .Add('qty')
+    .Add(Random(100)+1)
+    .Add('price')
+    .Add(100+Random(100)/10);
+   var lRes := fRedis.ExecuteWithStringResult(lCmd);
+  if i mod 100 = 0 then Log(i.ToString);
+     sleep(5);
+  end;
+ end
+  );
 end;
 
-procedure TMainForm.CheckMatches;
+procedure TMainForm.Button6Click(Sender: TObject);
 begin
- MatchOrders;
+TTask.Run( procedure var i:integer; begin
+  for I := 1 to 10000 do begin
+    var lCmd := NewRedisCommand('XADD');
+  lCmd
+    .Add('order_history:XH2USD')
+    .Add('*')
+    .Add('user_id')
+    .Add('456')
+    .Add('type')
+    .Add('buy')
+    .Add('qty')
+    .Add(Random(100)+1)
+    .Add('price')
+    .Add(92+Random(100)/10);
+  var lRes := fRedis.ExecuteWithStringResult(lCmd);
+  if i mod 100 = 0 then Log(i.ToString);
+  sleep(5);
+  end;
+  end);
 end;
 
 procedure TMainForm.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -530,6 +572,24 @@ begin
     end);
 end;
 
+procedure TMainForm.Log3(const MSG: String);
+var
+  lValue: String;
+begin
+  lValue := MSG;
+  var lThreadID := TThread.CurrentThread.ThreadID;
+  TThread.Queue(nil,
+    procedure
+    begin
+      if Assigned(Memo3) then
+      begin
+        Memo3.Lines.Add(Format('[TID %d] %s', [lThreadID, lValue]));
+      end;
+    end);
+end;
+
+
+
 procedure TMainForm.Log2(const MSG: String);
 var
   lValue: String;
@@ -539,7 +599,7 @@ begin
   TThread.Queue(nil,
     procedure
     begin
-      if Assigned(Memo1) then
+      if Assigned(Memo2) then
       begin
         Memo2.Lines.Add(Format('[TID %d] %s', [lThreadID, lValue]));
       end;
